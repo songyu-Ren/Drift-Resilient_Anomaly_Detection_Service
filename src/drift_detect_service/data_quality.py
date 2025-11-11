@@ -4,23 +4,26 @@ import numpy as np
 from pydantic import BaseModel, field_validator
 
 
-class PredictRequest(BaseModel):
-    instances: list[list[float]]
+class Features(BaseModel):
+    f1: float
+    f2: float
+    f3: float
 
-    @field_validator("instances")
+    @field_validator("f1", "f2", "f3")
     @classmethod
-    def validate_instances(cls, v: list[list[float]]) -> list[list[float]]:
-        if not v:
-            raise ValueError("instances must not be empty")
-        for row in v:
-            if len(row) != 3:
-                raise ValueError("each instance must have exactly 3 features")
-            for val in row:
-                if not isinstance(val, int | float):
-                    raise ValueError("features must be numeric")
-                if not np.isfinite(val):
-                    raise ValueError("features must be finite")
-        return v
+    def validate_numeric_and_finite(cls, v: float) -> float:
+        if not isinstance(v, int | float):
+            raise ValueError("feature must be numeric")
+        if not np.isfinite(v):
+            raise ValueError("feature must be finite")
+        return float(v)
+
+
+class PredictRequest(BaseModel):
+    features: Features
+
+    def as_array(self) -> np.ndarray:
+        return np.asarray([[self.features.f1, self.features.f2, self.features.f3]], dtype=float)
 
 
 def ensure_numeric_and_finite(X: np.ndarray) -> None:

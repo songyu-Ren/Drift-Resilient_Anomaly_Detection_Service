@@ -7,10 +7,8 @@ services:
     image: drift-detect:latest
     container_name: drift-detect-service
     environment:
-      - CONFIG_PATH=/app/config/settings.yaml
+      - DDS_SETTINGS=/app/config/settings.yaml
     ports:
       - "8000:8000"
     volumes:
-      - ./artifacts:/app/artifacts
       - ./config:/app/config:ro
-      - ./src:/app/src:ro

@@ -6,21 +6,21 @@ RUFF=$(VENV)/bin/ruff
 PYTEST=$(VENV)/bin/pytest
 UVICORN=$(VENV)/bin/uvicorn
 
-.PHONY: help install format lint test train run docker-build docker-up docker-down
+.PHONY: help setup fmt lint test train run docker-build docker-run
 
 help:
-	@echo "Targets: install, format, lint, test, train, run, docker-build, docker-up, docker-down"
+	@echo "Targets: setup, fmt, lint, test, train, run, docker-build, docker-run"
 
-install:
+setup:
 	python3 -m venv $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
 
-format:
+fmt:
 	$(BLACK) .
 
 lint:
-	$(RUFF) check --strict .
+	$(RUFF) check .
 
 test:
 	$(PYTEST) -q
@@ -34,8 +34,5 @@ run:
 docker-build:
 	docker build -t drift-detect:latest -f docker/Dockerfile .
 
-docker-up:
+docker-run:
 	docker compose up --build -d
-
-docker-down:
-	docker compose down

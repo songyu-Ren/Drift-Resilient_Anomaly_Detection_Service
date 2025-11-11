@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 
@@ -11,9 +11,9 @@ from .data_quality import PredictRequest, run_data_quality_checks
 from .model import AnomalyModel
 from .monitoring import (
     anomalies_total,
+    latency_timer,
     metrics_exposition_text,
     model_loaded,
-    request_latency_seconds,
     requests_total,
 )
 from .settings import get_settings
@@ -40,36 +40,50 @@ def _ensure_model_loaded() -> bool:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    requests_total.labels(endpoint="/health").inc()
-    return {"status": "ok", "model_loaded": int(_ensure_model_loaded())}
+    settings = get_settings()
+    loaded = int(_ensure_model_loaded())
+    # Load metadata if available
+    metadata: dict[str, Any] | None = None
+    try:
+        meta_path = Path(settings.metadata_path)
+        if meta_path.exists():
+            metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+    except Exception:
+        metadata = None
+    resp = {"status": "ok", "model_loaded": bool(loaded), "env": settings.service.env, "metadata": metadata}
+    requests_total.labels(endpoint="/health", method="GET", status="200").inc()
+    return resp
 
 
 @app.post("/predict")
 def predict(req: PredictRequest) -> dict[str, Any]:
-    requests_total.labels(endpoint="/predict").inc()
-    # Measure latency manually since we want explicit control
-    # (alternatively use a decorator)
-    import time
-
-    start = time.perf_counter()
-    try:
-        X = np.asarray(req.instances, dtype=float)
+    with latency_timer(endpoint="/predict"):
+        X = req.as_array()
         run_data_quality_checks(X)
         if not _ensure_model_loaded():
+            # Count request with 503
+            requests_total.labels(endpoint="/predict", method="POST", status="503").inc()
             raise HTTPException(status_code=503, detail="Model not loaded")
         out = _model.predict(X)
         # IsolationForest: -1 means anomaly
-        anomalies = sum(1 for p in out["predictions"] if p == -1)
-        anomalies_total.labels(endpoint="/predict").inc(anomalies)
-        return out
-    finally:
-        duration = time.perf_counter() - start
-        request_latency_seconds.labels(endpoint="/predict").observe(duration)
+        pred = out["predictions"][0]
+        score = out["scores"][0]
+        is_anomaly = pred == -1
+        if is_anomaly:
+            anomalies_total.labels(endpoint="/predict").inc(1)
+        resp = {
+            "anomaly_score": -float(score),
+            "is_anomaly": bool(is_anomaly),
+            "n_features": int(X.shape[1]),
+        }
+        # Count request with 200
+        requests_total.labels(endpoint="/predict", method="POST", status="200").inc()
+        return resp
 
 
 @app.get("/metrics")
 def metrics() -> PlainTextResponse:
-    requests_total.labels(endpoint="/metrics").inc()
+    requests_total.labels(endpoint="/metrics", method="GET", status="200").inc()
     return PlainTextResponse(
         content=metrics_exposition_text(), media_type="text/plain; version=0.0.4"
     )

@@ -4,14 +4,22 @@ metadata_path: "artifacts/metadata.json"
 
 training:
   random_seed: 42
-  n_samples: 1000
-  n_anomalies: 50
+  n_samples: 5000
   n_features: 3
+  synthetic:
+    cluster_std: 1.0
+    anomaly_scale: 10.0
   isolation_forest:
     n_estimators: 200
-    contamination: 0.05
+    contamination: 0.02
+    max_samples: "auto"
     random_state: 42
 
 service:
   host: 0.0.0.0
   port: 8000
+  env: dev
+
+monitoring:
+  enabled: true
+  latency_buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]

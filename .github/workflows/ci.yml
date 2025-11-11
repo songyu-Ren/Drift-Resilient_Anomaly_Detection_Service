@@ -24,12 +24,12 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lint (ruff)
-        run: ruff check --strict .
+        run: ruff check .
 
       - name: Format check (black)
         run: black --check .
 
       - name: Run tests
         env:
-          CONFIG_PATH: ${{ github.workspace }}/config/settings.yaml
+          DDS_SETTINGS: ${{ github.workspace }}/config/settings.yaml
         run: pytest -q
