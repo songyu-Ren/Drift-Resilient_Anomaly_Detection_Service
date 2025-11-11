@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drift-detect-service"
+version = "0.1.0"
+description = "Production-minded FastAPI microservice for real-time anomaly detection."
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "W",  # pycodestyle warnings
+  "I",  # isort
+  "B",  # flake8-bugbear
+  "S",  # flake8-bandit
+  "UP", # pyupgrade
+  "C90" # mccabe complexity
+]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+"src/drift_detect_service/settings.py" = ["S104"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
